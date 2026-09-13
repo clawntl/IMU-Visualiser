@@ -10,7 +10,7 @@ A proper desktop app (PySide6 + OpenGL via pyqtgraph) with:
 
 - Dynamic serial port selection, baud rate, connect/disconnect, and **auto-reconnect** if the device resets or unplugs — no more hardcoded `COM17` and restarting the script per port.
 - Switchable input format: quaternion (`w;x;y;z`) or Euler angles (`roll;pitch;yaw`), matching whatever your firmware sends.
-- A live-rotating, smooth-shaded 3D view of either a default placeholder board (size-adjustable, with a highlighted "front" face so orientation is unambiguous) or your own imported **STL/OBJ model**, with an adjustable origin/pivot so the model rotates around where the IMU actually sits rather than its geometric centroid.
+- A live-rotating, smooth-shaded 3D view with a proper R/G/B = X/Y/Z axis triad (always shows the true orientation), of either a default placeholder board (size-adjustable, with a highlighted "front" face so orientation is unambiguous) or your own imported **STL/OBJ model** — with an adjustable origin (so it rotates around where the IMU actually sits, not its geometric centroid) and an independent rotation calibration (so the model's own baked-in axes can be lined up with the triad).
 - **Axis remap**: correct a sensor mounted sideways/upside-down/rotated relative to the visualized body, without re-flashing firmware.
 - Live quaternion + Euler readouts (computed both ways regardless of input format), a rolling roll/pitch/yaw graph, and a two-way serial console (view MCU debug output, send commands back) with a stale-data warning if the device stops sending.
 - **Record & playback**: log a live session to CSV with timestamps, then replay it through the same 3D view later without hardware attached — handy for debugging intermittent issues.

@@ -9,6 +9,7 @@ import pyqtgraph.opengl as gl
 from pyqtgraph.opengl.shaders import FragmentShader, ShaderProgram, VertexShader
 
 from .model_loader import load_mesh
+from .orientation_math import euler_deg_to_rotation_matrix
 
 # Front-face color, so the "front" of the default board is always visually
 # obvious no matter how it's spun around. Body color is user-adjustable.
@@ -76,6 +77,26 @@ def _box_colors(body_color: np.ndarray) -> np.ndarray:
     return colors.astype(np.float32)
 
 
+def _make_axis_triad(size: float) -> "gl.GLLinePlotItem":
+    """A proper R=X, G=Y, B=Z axis gizmo. pyqtgraph's built-in GLAxisItem
+    uses blue/yellow/green for X/Y/Z -- not the RGB=XYZ convention everyone
+    actually expects -- so this replaces it."""
+    pos = np.array([
+        [0, 0, 0, size, 0, 0],  # X
+        [0, 0, 0, 0, size, 0],  # Y
+        [0, 0, 0, 0, 0, size],  # Z
+    ], dtype=np.float32).reshape((-1, 3))
+
+    color = np.array([
+        [1, 0, 0, 1],  # X red
+        [0, 1, 0, 1],  # Y green
+        [0, 0, 1, 1],  # Z blue
+    ], dtype=np.float32)
+    color = np.hstack((color, color)).reshape((-1, 4))
+
+    return gl.GLLinePlotItem(pos=pos, color=color, mode="lines", width=2, antialias=True)
+
+
 class Viewport3D:
     def __init__(self):
         self.view = gl.GLViewWidget()
@@ -97,14 +118,16 @@ class Viewport3D:
         )
         self.view.addItem(self.mesh_item)
 
-        self.axis_item = gl.GLAxisItem()
-        self.axis_item.setSize(1.4, 1.4, 1.4)
+        self.axis_item = _make_axis_triad(1.4)
         self.view.addItem(self.axis_item)
 
         self._using_custom_model = False
         self._model_base_vertices: np.ndarray | None = None
         self._model_faces: np.ndarray | None = None
         self._model_pivot = np.zeros(3)
+        self._model_rotation_cal = np.eye(3)
+        self._model_rotation_deg = (0.0, 0.0, 0.0)
+        self._last_R = np.eye(3)
 
     def widget(self):
         return self.view
@@ -114,11 +137,20 @@ class Viewport3D:
         self.grid_item.setColor(grid_color)
 
     def set_orientation(self, R: np.ndarray) -> None:
-        m = np.eye(4, dtype=np.float64)
-        m[:3, :3] = R
-        tr = _np_to_qmatrix(m)
-        self.mesh_item.setTransform(tr)
-        self.axis_item.setTransform(tr)
+        self._last_R = R
+        self._apply_transforms()
+
+    def _apply_transforms(self) -> None:
+        R = self._last_R
+
+        # The axis triad always shows the true, uncalibrated orientation.
+        self.axis_item.setTransform(_np_to_qmatrix(_rot_to_mat4(R)))
+
+        # The model gets an extra fixed rotation on top, so its own (often
+        # arbitrary) local axes can be calibrated to match the triad without
+        # affecting what the triad itself represents.
+        mesh_R = R @ self._model_rotation_cal if self._using_custom_model else R
+        self.mesh_item.setTransform(_np_to_qmatrix(_rot_to_mat4(mesh_R)))
 
     def set_board_size(self, dx: float, dy: float, dz: float) -> None:
         self._board_size = (dx, dy, dz)
@@ -144,8 +176,11 @@ class Viewport3D:
         self._model_base_vertices = vertices
         self._model_faces = faces
         self._model_pivot = np.zeros(3)
+        self._model_rotation_cal = np.eye(3)
+        self._model_rotation_deg = (0.0, 0.0, 0.0)
         self._using_custom_model = True
         self._apply_model_mesh()
+        self._apply_transforms()
 
     def set_model_pivot(self, dx: float, dy: float, dz: float) -> None:
         """Shifts the imported model's rotation origin (e.g. so it matches
@@ -156,6 +191,17 @@ class Viewport3D:
         self._model_pivot = np.array([dx, dy, dz], dtype=np.float64)
         if self._using_custom_model:
             self._apply_model_mesh()
+
+    def set_model_rotation(self, roll: float, pitch: float, yaw: float) -> None:
+        """Applies a fixed calibration rotation (degrees) to the imported
+        model only -- the axis triad keeps showing the true orientation.
+        Use this when the model's own local axes (baked into the STL/OBJ
+        file) don't line up with the triad, independent of where its
+        origin/pivot is."""
+        self._model_rotation_deg = (roll, pitch, yaw)
+        self._model_rotation_cal = euler_deg_to_rotation_matrix(roll, pitch, yaw)
+        if self._using_custom_model:
+            self._apply_transforms()
 
     def set_body_color(self, r: float, g: float, b: float) -> None:
         self._body_color = np.array([r, g, b, 1.0])
@@ -187,8 +233,18 @@ class Viewport3D:
         return tuple(self._model_pivot)
 
     @property
+    def model_rotation(self) -> tuple[float, float, float]:
+        return self._model_rotation_deg
+
+    @property
     def body_color(self) -> tuple[float, float, float]:
         return tuple(self._body_color[:3])
+
+
+def _rot_to_mat4(R: np.ndarray) -> np.ndarray:
+    m = np.eye(4, dtype=np.float64)
+    m[:3, :3] = R
+    return m
 
 
 def _np_to_qmatrix(m: np.ndarray):
