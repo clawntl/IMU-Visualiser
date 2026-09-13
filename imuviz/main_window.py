@@ -56,6 +56,9 @@ LEFT_PANEL_WIDTH = 380
 STALE_DATA_SECONDS = 3.0
 RECONNECT_DELAY_MS = 2500
 AXIS_OPTIONS = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"]
+# Matches the viewport's R=X, G=Y, B=Z axis triad, so the remap controls
+# read at a glance instead of needing to check the 3D view.
+AXIS_COLORS = {"x": "#e5484d", "y": "#30a46c", "z": "#3b82f6"}
 
 
 class StatusDot(QFrame):
@@ -178,7 +181,7 @@ class MainWindow(QMainWindow):
         heading.setWordWrap(True)
         header_row.addWidget(heading, 1)
 
-        self.theme_toggle_btn = QPushButton("🌙")
+        self.theme_toggle_btn = QPushButton("☾")
         self.theme_toggle_btn.setToolTip("Toggle light/dark theme")
         self.theme_toggle_btn.setMaximumWidth(36)
         header_row.addWidget(self.theme_toggle_btn)
@@ -332,11 +335,18 @@ class MainWindow(QMainWindow):
         form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
 
         self.axis_combos = {}
-        for label, key in (("Display X ←", "x"), ("Display Y ←", "y"), ("Display Z ←", "z")):
+        for key in ("x", "y", "z"):
+            row_label = QLabel(f"Display {key.upper()} ←")
+            row_label.setStyleSheet(f"color: {AXIS_COLORS[key]}; font-weight: 600;")
+
             combo = QComboBox()
-            combo.addItems(AXIS_OPTIONS)
+            for opt in AXIS_OPTIONS:
+                combo.addItem(opt)
+                idx = combo.count() - 1
+                combo.setItemData(idx, QColor(AXIS_COLORS[opt[-1].lower()]), Qt.ForegroundRole)
+
             self.axis_combos[key] = combo
-            form.addRow(label, combo)
+            form.addRow(row_label, combo)
         self.axis_combos["x"].setCurrentText("+X")
         self.axis_combos["y"].setCurrentText("+Y")
         self.axis_combos["z"].setCurrentText("+Z")
@@ -984,7 +994,7 @@ class MainWindow(QMainWindow):
             suffix = " font-size: 11px;" if small else ""
             label.setStyleSheet(f"color: {palette.text_dim};{suffix}")
 
-        self.theme_toggle_btn.setText("🌙" if self._dark_mode else "☀")
+        self.theme_toggle_btn.setText("☾" if self._dark_mode else "☀")
 
         self.status_dot.refresh()
         self._on_axis_remap_changed()
