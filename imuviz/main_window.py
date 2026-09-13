@@ -234,6 +234,32 @@ class MainWindow(QMainWindow):
         self.reset_model_btn = QPushButton("Reset to Default Shape")
         layout.addWidget(self.reset_model_btn)
 
+        pivot_form = QFormLayout()
+        pivot_form.setContentsMargins(0, 6, 0, 0)
+        self.model_pivot_spins = {}
+        for axis in "xyz":
+            spin = QDoubleSpinBox()
+            spin.setRange(-3.0, 3.0)
+            spin.setSingleStep(0.05)
+            spin.setDecimals(3)
+            spin.setValue(0.0)
+            spin.setEnabled(False)
+            self.model_pivot_spins[axis] = spin
+            pivot_form.addRow(f"Origin {axis.upper()}", spin)
+        layout.addLayout(pivot_form)
+
+        self.pivot_hint_label = QLabel(
+            "The RGB axis triad marks the current origin — for an imported "
+            "model, nudge these until it sits where the IMU actually is."
+        )
+        self.pivot_hint_label.setWordWrap(True)
+        self.pivot_hint_label.setStyleSheet(f"color: {theme.TEXT_DIM}; font-size: 11px;")
+        layout.addWidget(self.pivot_hint_label)
+
+        self.reset_pivot_btn = QPushButton("Reset Origin to Model Center")
+        self.reset_pivot_btn.setEnabled(False)
+        layout.addWidget(self.reset_pivot_btn)
+
         size_form = QFormLayout()
         size_form.setContentsMargins(0, 6, 0, 0)
         self.board_size_spins = {}
@@ -436,6 +462,10 @@ class MainWindow(QMainWindow):
         for spin in self.board_size_spins.values():
             spin.valueChanged.connect(self._on_board_size_changed)
 
+        for spin in self.model_pivot_spins.values():
+            spin.valueChanged.connect(self._on_model_pivot_changed)
+        self.reset_pivot_btn.clicked.connect(self._on_reset_pivot)
+
         for combo in self.axis_combos.values():
             combo.currentIndexChanged.connect(self._on_axis_remap_changed)
         self.axis_reset_btn.clicked.connect(self._on_axis_remap_reset)
@@ -486,6 +516,13 @@ class MainWindow(QMainWindow):
                 self.viewport.load_model(model_path)
                 self.model_label.setText(model_path)
                 self._set_board_size_controls_enabled(False)
+                self._set_pivot_controls_enabled(True)
+                for axis in "xyz":
+                    val = self.settings.get(f"pivot_{axis}", 0.0)
+                    try:
+                        self.model_pivot_spins[axis].setValue(float(val))
+                    except (TypeError, ValueError):
+                        pass
             except (ModelLoadError, OSError):
                 pass
 
@@ -501,6 +538,7 @@ class MainWindow(QMainWindow):
         for axis in "xyz":
             self.settings.set(f"axis_{axis}", self.axis_combos[axis].currentText())
             self.settings.set(f"board_{axis}", self.board_size_spins[axis].value())
+            self.settings.set(f"pivot_{axis}", self.model_pivot_spins[axis].value())
 
     # ------------------------------------------------------------------
     # Port / connection handling
@@ -759,16 +797,41 @@ class MainWindow(QMainWindow):
         self.model_label.setText(path)
         self.settings.set("model_path", path)
         self._set_board_size_controls_enabled(False)
+        self._set_pivot_controls_enabled(True)
+        for spin in self.model_pivot_spins.values():
+            spin.blockSignals(True)
+            spin.setValue(0.0)
+            spin.blockSignals(False)
 
     def _on_reset_model(self):
         self.viewport.reset_to_default()
         self.model_label.setText("Using default board shape")
         self.settings.set("model_path", "")
         self._set_board_size_controls_enabled(True)
+        self._set_pivot_controls_enabled(False)
 
     def _set_board_size_controls_enabled(self, enabled: bool):
         for spin in self.board_size_spins.values():
             spin.setEnabled(enabled)
+
+    def _set_pivot_controls_enabled(self, enabled: bool):
+        for spin in self.model_pivot_spins.values():
+            spin.setEnabled(enabled)
+        self.reset_pivot_btn.setEnabled(enabled)
+
+    def _on_model_pivot_changed(self):
+        self.viewport.set_model_pivot(
+            self.model_pivot_spins["x"].value(),
+            self.model_pivot_spins["y"].value(),
+            self.model_pivot_spins["z"].value(),
+        )
+
+    def _on_reset_pivot(self):
+        for spin in self.model_pivot_spins.values():
+            spin.blockSignals(True)
+            spin.setValue(0.0)
+            spin.blockSignals(False)
+        self.viewport.set_model_pivot(0.0, 0.0, 0.0)
 
     def _on_board_size_changed(self):
         self.viewport.set_board_size(

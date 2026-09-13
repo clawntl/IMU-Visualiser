@@ -97,6 +97,10 @@ class Viewport3D:
         self.view.addItem(self.axis_item)
 
         self._using_custom_model = False
+        self._model_base_vertices: np.ndarray | None = None
+        self._model_faces: np.ndarray | None = None
+        self._model_colors: np.ndarray | None = None
+        self._model_pivot = np.zeros(3)
 
     def widget(self):
         return self.view
@@ -130,13 +134,32 @@ class Viewport3D:
         # Scale imported models up a bit to visually match the default box.
         vertices = vertices * 1.4
         color = np.tile(np.array(_BODY_COLOR), (faces.shape[0], 1)).astype(np.float32)
+
+        self._model_base_vertices = vertices
+        self._model_faces = faces
+        self._model_colors = color
+        self._model_pivot = np.zeros(3)
+        self._using_custom_model = True
+        self._apply_model_mesh()
+
+    def set_model_pivot(self, dx: float, dy: float, dz: float) -> None:
+        """Shifts the imported model's rotation origin (e.g. so it matches
+        where the IMU actually sits on a PCB/enclosure, instead of the
+        mesh's geometric centroid). Offset is in the same display-scale
+        units the model renders in. The RGB axis triad always marks the
+        current origin, so it doubles as a visual guide while adjusting."""
+        self._model_pivot = np.array([dx, dy, dz], dtype=np.float64)
+        if self._using_custom_model:
+            self._apply_model_mesh()
+
+    def _apply_model_mesh(self) -> None:
+        vertices = (self._model_base_vertices - self._model_pivot).astype(np.float32)
         # Smooth-shaded, no per-triangle wireframe: looks like a solid part
         # instead of a mess of triangulation lines on curved/dense meshes.
         self.mesh_item.setMeshData(
-            vertexes=vertices, faces=faces, faceColors=color,
+            vertexes=vertices, faces=self._model_faces, faceColors=self._model_colors,
             shader="imu_shaded", smooth=True, drawEdges=False,
         )
-        self._using_custom_model = True
 
     def screenshot(self, path: str) -> None:
         image = self.view.grabFramebuffer()
@@ -145,6 +168,10 @@ class Viewport3D:
     @property
     def using_custom_model(self) -> bool:
         return self._using_custom_model
+
+    @property
+    def model_pivot(self) -> tuple[float, float, float]:
+        return tuple(self._model_pivot)
 
 
 def _np_to_qmatrix(m: np.ndarray):

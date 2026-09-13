@@ -99,7 +99,7 @@ QPushButton[danger="true"] {{
     border: none;
 }}
 
-QComboBox, QSpinBox, QLineEdit {{
+QComboBox, QSpinBox, QDoubleSpinBox, QLineEdit {{
     background-color: {PANEL_ALT};
     border: 1px solid {BORDER};
     border-radius: 6px;
@@ -107,8 +107,14 @@ QComboBox, QSpinBox, QLineEdit {{
     min-height: 22px;
 }}
 
-QComboBox:hover, QSpinBox:hover {{
+QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {{
     border-color: {ACCENT};
+}}
+
+QComboBox:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QLineEdit:disabled {{
+    background-color: transparent;
+    border-color: {BORDER};
+    color: {TEXT_DIM};
 }}
 
 QComboBox::drop-down {{
