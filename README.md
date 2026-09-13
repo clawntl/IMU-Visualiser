@@ -14,8 +14,8 @@ A proper desktop app (PySide6 + OpenGL via pyqtgraph) with:
 - **Axis remap**: correct a sensor mounted sideways/upside-down/rotated relative to the visualized body, without re-flashing firmware.
 - Live quaternion + Euler readouts (computed both ways regardless of input format), a rolling roll/pitch/yaw graph, and a two-way serial console (view MCU debug output, send commands back) with a stale-data warning if the device stops sending.
 - **Record & playback**: log a live session to CSV with timestamps, then replay it through the same 3D view later without hardware attached — handy for debugging intermittent issues.
-- "Set Zero (Tare)" to zero out a mounting offset instead of re-flashing firmware, and one-click screenshot export of the 3D view.
-- Remembers your settings (port, baud, mode, model, axis remap, board size) between runs.
+- "Set Zero (Tare)" to zero out a mounting offset instead of re-flashing firmware, one-click screenshot export of the 3D view, a custom model/board color picker, and a toggleable light/dark theme.
+- Remembers your settings (port, baud, mode, model, axis remap, board size, color, theme) between runs.
 
 ### Running
 

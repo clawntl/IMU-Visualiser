@@ -7,9 +7,11 @@ import numpy as np
 import pyqtgraph as pg
 import serial.tools.list_ports
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QTextCursor
+from PySide6.QtGui import QColor, QTextCursor
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
+    QColorDialog,
     QComboBox,
     QDoubleSpinBox,
     QFileDialog,
@@ -60,16 +62,23 @@ class StatusDot(QFrame):
     def __init__(self):
         super().__init__()
         self.setFixedSize(12, 12)
+        self._state = "off"
         self.set_state("off")
 
     def set_state(self, state: str):
+        self._state = state
         color = {
-            "off": "#5a5f6b",
+            "off": theme.TEXT_DIM,
             "good": theme.GOOD,
             "bad": theme.BAD,
-            "warn": "#e0a934",
-        }.get(state, "#5a5f6b")
+            "warn": theme.WARN,
+        }.get(state, theme.TEXT_DIM)
         self.setStyleSheet(f"border-radius: 6px; background-color: {color};")
+
+    def refresh(self):
+        """Re-applies the current state's color using the current theme
+        constants -- call after a theme switch."""
+        self.set_state(self._state)
 
 
 def _value_label(text: str = "--") -> QLabel:
@@ -102,6 +111,10 @@ class MainWindow(QMainWindow):
         self.recorder: SessionRecorder | None = None
         self.playback = PlaybackController(self)
         self._playback_loaded = False
+
+        self._dark_mode = True
+        self._dim_labels: list[tuple[QLabel, bool]] = []
+        self.plot_legend = None
 
         self.viewport = Viewport3D()
 
@@ -159,10 +172,17 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(12)
 
+        header_row = QHBoxLayout()
         heading = QLabel("IMU Orientation Visualizer")
         heading.setProperty("role", "heading")
         heading.setWordWrap(True)
-        layout.addWidget(heading)
+        header_row.addWidget(heading, 1)
+
+        self.theme_toggle_btn = QPushButton("🌙")
+        self.theme_toggle_btn.setToolTip("Toggle light/dark theme")
+        self.theme_toggle_btn.setMaximumWidth(36)
+        header_row.addWidget(self.theme_toggle_btn)
+        layout.addLayout(header_row)
 
         layout.addWidget(self._build_connection_group())
         layout.addWidget(self._build_model_group())
@@ -195,6 +215,7 @@ class MainWindow(QMainWindow):
         self.port_detail_label = QLabel("")
         self.port_detail_label.setWordWrap(True)
         self.port_detail_label.setStyleSheet(f"color: {theme.TEXT_DIM}; font-size: 11px;")
+        self._dim_labels.append((self.port_detail_label, True))
         form.addRow("", self.port_detail_label)
 
         self.baud_combo = QComboBox()
@@ -226,6 +247,7 @@ class MainWindow(QMainWindow):
         self.model_label = QLabel("Using default board shape")
         self.model_label.setWordWrap(True)
         self.model_label.setStyleSheet(f"color: {theme.TEXT_DIM};")
+        self._dim_labels.append((self.model_label, False))
         layout.addWidget(self.model_label)
 
         self.import_model_btn = QPushButton("Import STL/OBJ...")
@@ -233,6 +255,14 @@ class MainWindow(QMainWindow):
 
         self.reset_model_btn = QPushButton("Reset to Default Shape")
         layout.addWidget(self.reset_model_btn)
+
+        color_row = QHBoxLayout()
+        self.model_color_btn = QPushButton("Model Color...")
+        self.model_color_swatch = QFrame()
+        self.model_color_swatch.setFixedSize(26, 26)
+        color_row.addWidget(self.model_color_btn, 1)
+        color_row.addWidget(self.model_color_swatch)
+        layout.addLayout(color_row)
 
         pivot_form = QFormLayout()
         pivot_form.setContentsMargins(0, 6, 0, 0)
@@ -254,6 +284,7 @@ class MainWindow(QMainWindow):
         )
         self.pivot_hint_label.setWordWrap(True)
         self.pivot_hint_label.setStyleSheet(f"color: {theme.TEXT_DIM}; font-size: 11px;")
+        self._dim_labels.append((self.pivot_hint_label, True))
         layout.addWidget(self.pivot_hint_label)
 
         self.reset_pivot_btn = QPushButton("Reset Origin to Model Center")
@@ -326,6 +357,7 @@ class MainWindow(QMainWindow):
         self.record_status_label = QLabel("")
         self.record_status_label.setStyleSheet(f"color: {theme.TEXT_DIM}; font-size: 11px;")
         self.record_status_label.setWordWrap(True)
+        self._dim_labels.append((self.record_status_label, True))
         layout.addWidget(self.record_status_label)
 
         line = QFrame()
@@ -338,6 +370,7 @@ class MainWindow(QMainWindow):
         self.playback_file_label = QLabel("No log loaded")
         self.playback_file_label.setWordWrap(True)
         self.playback_file_label.setStyleSheet(f"color: {theme.TEXT_DIM}; font-size: 11px;")
+        self._dim_labels.append((self.playback_file_label, True))
         layout.addWidget(self.playback_file_label)
 
         play_row = QHBoxLayout()
@@ -351,6 +384,7 @@ class MainWindow(QMainWindow):
 
         self.playback_position_label = QLabel("")
         self.playback_position_label.setStyleSheet(f"color: {theme.TEXT_DIM}; font-size: 11px;")
+        self._dim_labels.append((self.playback_position_label, True))
         layout.addWidget(self.playback_position_label)
 
         return box
@@ -391,7 +425,7 @@ class MainWindow(QMainWindow):
         self.plot_widget.setFixedHeight(160)
         self.plot_widget.setLabel("left", "degrees")
         self.plot_widget.setLabel("bottom", "seconds")
-        self.plot_widget.addLegend()
+        self.plot_legend = self.plot_widget.addLegend()
         self.plot_widget.showGrid(x=True, y=True, alpha=0.15)
         self.roll_curve = self.plot_widget.plot(pen=pg.mkPen("#ff5c6c", width=2), name="Roll")
         self.pitch_curve = self.plot_widget.plot(pen=pg.mkPen("#4fd68b", width=2), name="Pitch")
@@ -453,6 +487,8 @@ class MainWindow(QMainWindow):
         self.reset_model_btn.clicked.connect(self._on_reset_model)
         self.reset_camera_btn.clicked.connect(self._on_reset_camera)
         self.screenshot_btn.clicked.connect(self._on_screenshot)
+        self.model_color_btn.clicked.connect(self._on_pick_model_color)
+        self.theme_toggle_btn.clicked.connect(self._on_toggle_theme)
         self.tare_btn.clicked.connect(self._on_tare)
         self.clear_tare_btn.clicked.connect(self._on_clear_tare)
         self.clear_console_btn.clicked.connect(self.log_view.clear)
@@ -482,6 +518,16 @@ class MainWindow(QMainWindow):
     # Settings persistence
     # ------------------------------------------------------------------
     def _restore_settings(self):
+        self._dark_mode = self.settings.get("dark_mode", True)
+        self._apply_theme()
+
+        saved_color = self.settings.get("body_color", "")
+        if saved_color:
+            color = QColor(saved_color)
+            if color.isValid():
+                self.viewport.set_body_color(color.redF(), color.greenF(), color.blueF())
+        self._update_color_swatch()
+
         last_port = self.settings.get("port", "")
         if last_port:
             idx = self.port_combo.findData(last_port)
@@ -535,6 +581,9 @@ class MainWindow(QMainWindow):
         self.settings.set("baud", self.baud_combo.currentText())
         self.settings.set("mode", self.mode_combo.currentData())
         self.settings.set("auto_reconnect", self.auto_reconnect_check.isChecked())
+        self.settings.set("dark_mode", self._dark_mode)
+        r, g, b = self.viewport.body_color
+        self.settings.set("body_color", QColor.fromRgbF(r, g, b).name())
         for axis in "xyz":
             self.settings.set(f"axis_{axis}", self.axis_combos[axis].currentText())
             self.settings.set(f"board_{axis}", self.board_size_spins[axis].value())
@@ -851,6 +900,62 @@ class MainWindow(QMainWindow):
             return
         self.viewport.screenshot(path)
         self.statusBar().showMessage(f"Saved screenshot to {path}", 4000)
+
+    def _on_pick_model_color(self):
+        r, g, b = self.viewport.body_color
+        current = QColor.fromRgbF(r, g, b)
+        color = QColorDialog.getColor(current, self, "Choose Model Color")
+        if not color.isValid():
+            return
+        self.viewport.set_body_color(color.redF(), color.greenF(), color.blueF())
+        self._update_color_swatch()
+
+    def _update_color_swatch(self):
+        r, g, b = self.viewport.body_color
+        color = QColor.fromRgbF(r, g, b)
+        self.model_color_swatch.setStyleSheet(
+            f"background-color: {color.name()}; border: 1px solid {theme.BORDER}; border-radius: 4px;"
+        )
+
+    # ------------------------------------------------------------------
+    # Theme
+    # ------------------------------------------------------------------
+    def _on_toggle_theme(self):
+        self._dark_mode = not self._dark_mode
+        self._apply_theme()
+
+    def _apply_theme(self):
+        palette = theme.DARK if self._dark_mode else theme.LIGHT
+        stylesheet = theme.activate(palette)
+
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(stylesheet)
+        theme.apply_pg_defaults(palette)
+
+        self.viewport.set_theme(palette.viewport_bg, palette.grid_color)
+
+        self.plot_widget.setBackground(palette.viewport_bg)
+        for axis_name in ("left", "bottom"):
+            axis = self.plot_widget.getAxis(axis_name)
+            axis.setPen(palette.text_dim)
+            axis.setTextPen(palette.text)
+        if self.plot_legend is not None:
+            # LegendItem.setLabelTextColor() only updates each label's
+            # stored option -- it never re-renders the label's HTML, so the
+            # color visually never changes. Force that regeneration directly.
+            for _sample, label in self.plot_legend.items:
+                label.setText(label.text, color=palette.text)
+
+        for label, small in self._dim_labels:
+            suffix = " font-size: 11px;" if small else ""
+            label.setStyleSheet(f"color: {palette.text_dim};{suffix}")
+
+        self.theme_toggle_btn.setText("🌙" if self._dark_mode else "☀")
+
+        self.status_dot.refresh()
+        self._on_axis_remap_changed()
+        self._update_color_swatch()
 
     # ------------------------------------------------------------------
     # Axis remap / tare
