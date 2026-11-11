@@ -1,4 +1,4 @@
-# IMU Orientation Visualizer
+# IMU Orientation Visualiser
 
 A desktop app that reads orientation data from an IMU over a serial port and shows it live in 3D, alongside a rolling graph, a two-way serial console, calibration tools, and session recording and playback. The device does the orientation calculation and streams quaternions or Euler angles; this app only receives and renders them, so it works with any IMU or firmware that outputs one of those formats.
 
@@ -19,7 +19,7 @@ A desktop app that reads orientation data from an IMU over a serial port and sho
 **3D view**
 - GPU-rendered (OpenGL) and smooth-shaded, with an always-true R/G/B = X/Y/Z axis triad.
 - Default placeholder board with a highlighted "front" face and adjustable size, or import your own **STL / OBJ** model.
-- Model color picker, screenshot export, and a camera reset.
+- Model colour picker, screenshot export, and a camera reset.
 - Live quaternion and Euler readouts (both are always shown, whichever format you are receiving) plus a rolling 15 s roll/pitch/yaw graph.
 
 **Calibration** (see [Aligning the model](#aligning-the-model-to-the-sensor) below)
@@ -32,7 +32,7 @@ A desktop app that reads orientation data from an IMU over a serial port and sho
 
 **Everything else**
 - Light and dark themes (toggle in the top-right of the left panel).
-- Remembers your port, baud, format, axis remap, model, origin/rotation, board size, color and theme between runs.
+- Remembers your port, baud, format, axis remap, model, origin/rotation, board size, colour and theme between runs.
 
 ## Getting started
 
@@ -56,7 +56,7 @@ One reading per line. Fields can be separated by `;`, `,` or whitespace.
 
 | Mode | Line | Notes |
 | --- | --- | --- |
-| Quaternion | `w;x;y;z` | Normalized on receipt. |
+| Quaternion | `w;x;y;z` | Normalised on receipt. |
 | Euler | `roll;pitch;yaw` | Degrees. Applied as `R = Rz(yaw) · Ry(pitch) · Rx(roll)`. |
 
 Any line that does not have the expected number of numeric fields is ignored for orientation purposes but still appears in the serial console, so boot messages and debug output are fine.
@@ -69,13 +69,13 @@ Three separate tools deal with orientation, and they do different jobs:
 
 | Tool | What it changes | Use it when |
 | --- | --- | --- |
-| **Axis remap** | The incoming sensor data, before anything else. | The sensor is physically mounted rotated relative to the body you are visualizing, so the motion itself is wrong. |
+| **Axis remap** | The incoming sensor data, before anything else. | The sensor is physically mounted rotated relative to the body you are visualising, so the motion itself is wrong. |
 | **Origin / Rotation** (imported models only) | How the model sits relative to the triad. The triad is not affected. | The motion is correct, but the STL/OBJ rotates about the wrong point, or its own baked-in axes do not match the sensor's. |
 | **Tare** | The zero reference: the current pose becomes 0, 0, 0 for display. | You just want "wherever it is right now" to be the starting point. |
 
-The axis triad always shows the true orientation: X red, Y green, Z blue. The remap dropdowns are colored the same way. For an imported model, nudge **Origin** until the triad sits where the IMU actually is on the part, then adjust **Rotation** until the model's axes line up with the triad.
+The axis triad always shows the true orientation: X red, Y green, Z blue. The remap dropdowns are coloured the same way. For an imported model, nudge **Origin** until the triad sits where the IMU actually is on the part, then adjust **Rotation** until the model's axes line up with the triad.
 
-Imported models are auto-centered and scaled to fit the view. OBJ support covers geometry only (vertices and faces, with polygons split into triangles); materials and textures are ignored.
+Imported models are auto-centred and scaled to fit the view. OBJ support covers geometry only (vertices and faces, with polygons split into triangles); materials and textures are ignored.
 
 ## Recording and playback
 

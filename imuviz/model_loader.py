@@ -1,5 +1,5 @@
 """Loads user-supplied 3D models (STL/OBJ) into plain vertex/face arrays,
-centered on their centroid and scaled to a consistent visual size."""
+centred on their centroid and scaled to a consistent visual size."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ class ModelLoadError(Exception):
 
 
 def load_mesh(path: str) -> tuple[np.ndarray, np.ndarray]:
-    """Returns (vertices Nx3 float32, faces Mx3 int32), normalized to fit
-    roughly within a 2-unit bounding box and centered at the origin."""
+    """Returns (vertices Nx3 float32, faces Mx3 int32), normalised to fit
+    roughly within a 2-unit bounding box and centred at the origin."""
 
     lower = path.lower()
     if lower.endswith(".stl"):

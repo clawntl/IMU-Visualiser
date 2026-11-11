@@ -79,7 +79,7 @@ class StatusDot(QFrame):
         self.setStyleSheet(f"border-radius: 6px; background-color: {color};")
 
     def refresh(self):
-        """Re-applies the current state's color using the current theme
+        """Re-applies the current state's colour using the current theme
         constants -- call after a theme switch."""
         self.set_state(self._state)
 
@@ -93,7 +93,7 @@ def _value_label(text: str = "--") -> QLabel:
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("IMU Orientation Visualizer")
+        self.setWindowTitle("IMU Orientation Visualiser")
         self.resize(1400, 880)
         self.setMinimumSize(950, 620)
 
@@ -176,7 +176,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(12)
 
         header_row = QHBoxLayout()
-        heading = QLabel("IMU Orientation Visualizer")
+        heading = QLabel("IMU Orientation Visualiser")
         heading.setProperty("role", "heading")
         heading.setWordWrap(True)
         header_row.addWidget(heading, 1)
@@ -260,7 +260,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.reset_model_btn)
 
         color_row = QHBoxLayout()
-        self.model_color_btn = QPushButton("Model Color...")
+        self.model_color_btn = QPushButton("Model Colour...")
         self.model_color_swatch = QFrame()
         self.model_color_swatch.setFixedSize(26, 26)
         color_row.addWidget(self.model_color_btn, 1)
@@ -947,7 +947,7 @@ class MainWindow(QMainWindow):
     def _on_pick_model_color(self):
         r, g, b = self.viewport.body_color
         current = QColor.fromRgbF(r, g, b)
-        color = QColorDialog.getColor(current, self, "Choose Model Color")
+        color = QColorDialog.getColor(current, self, "Choose Model Colour")
         if not color.isValid():
             return
         self.viewport.set_body_color(color.redF(), color.greenF(), color.blueF())
@@ -986,7 +986,7 @@ class MainWindow(QMainWindow):
         if self.plot_legend is not None:
             # LegendItem.setLabelTextColor() only updates each label's
             # stored option -- it never re-renders the label's HTML, so the
-            # color visually never changes. Force that regeneration directly.
+            # colour visually never changes. Force that regeneration directly.
             for _sample, label in self.plot_legend.items:
                 label.setText(label.text, color=palette.text)
 

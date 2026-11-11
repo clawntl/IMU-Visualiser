@@ -3,9 +3,9 @@
 Widgets styled purely through Qt stylesheets (buttons, combo boxes, group
 boxes, the dynamic accent/danger properties) restyle automatically when the
 app-wide stylesheet is reapplied. A handful of labels use direct
-setStyleSheet() calls for a dim/status color that isn't expressible as a
+setStyleSheet() calls for a dim/status colour that isn't expressible as a
 plain QSS selector -- MainWindow keeps a list of those and re-applies their
-color itself on toggle (see MainWindow._apply_theme)."""
+colour itself on toggle (see MainWindow._apply_theme)."""
 
 from dataclasses import dataclass
 

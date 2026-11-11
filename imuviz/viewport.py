@@ -11,8 +11,8 @@ from pyqtgraph.opengl.shaders import FragmentShader, ShaderProgram, VertexShader
 from .model_loader import load_mesh
 from .orientation_math import euler_deg_to_rotation_matrix
 
-# Front-face color, so the "front" of the default board is always visually
-# obvious no matter how it's spun around. Body color is user-adjustable.
+# Front-face colour, so the "front" of the default board is always visually
+# obvious no matter how it's spun around. Body colour is user-adjustable.
 _DEFAULT_BODY_COLOR = (0.55, 0.62, 0.75, 1.0)
 _FRONT_COLOR = (0.95, 0.35, 0.25, 1.0)
 

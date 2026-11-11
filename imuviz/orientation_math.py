@@ -96,13 +96,13 @@ AXIS_VECTORS = {
 
 def build_axis_remap_matrix(x_src: str, y_src: str, z_src: str) -> np.ndarray | None:
     """Builds the fixed rotation matrix M that maps sensor-frame axes to the
-    visualizer's display frame, given which sensor axis (e.g. "+Y") should
+    visualiser's display frame, given which sensor axis (e.g. "+Y") should
     appear as each display axis. Returns None if the three choices don't
     form a valid right-handed orthogonal basis (e.g. two axes the same).
 
     Apply as R_display = M @ R_sensor @ M.T (a similarity transform), which
     corrects both the resting pose and the rotation dynamics for a sensor
-    mounted sideways/upside-down/rotated relative to the visualized body.
+    mounted sideways/upside-down/rotated relative to the visualised body.
     """
     M = np.array([AXIS_VECTORS[x_src], AXIS_VECTORS[y_src], AXIS_VECTORS[z_src]])
 
