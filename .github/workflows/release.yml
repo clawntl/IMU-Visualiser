@@ -38,12 +38,35 @@ jobs:
 
       - name: Install Linux system libraries
         if: runner.os == 'Linux'
-        # Fails fast if the runner's package mirror is unreachable; just re-run the job.
-        timeout-minutes: 8
+        # Some runners can't resolve the default Ubuntu mirror (DNS failures), so
+        # fall back to other public mirrors on different domains. Only the main
+        # sources.list is used, so an unrelated third-party repo can't fail the step.
+        timeout-minutes: 12
+        shell: bash
         run: |
-          APT="sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
-          $APT update
-          $APT install -y libgl1 libegl1 libdbus-1-3 libfontconfig1 \
+          APT=(sudo apt-get
+            -o Dir::Etc::sourceparts=-
+            -o Acquire::Retries=1 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10)
+
+          apt_update() { timeout 120 "${APT[@]}" update --error-on=any; }
+
+          if ! apt_update; then
+            echo "Default apt mirror unreachable; trying alternatives"
+            ok=0
+            for mirror in \
+              http://mirrors.edge.kernel.org/ubuntu \
+              http://mirror.us.leaseweb.net/ubuntu \
+              http://mirrors.xtom.com/ubuntu; do
+              echo "--- trying $mirror"
+              printf 'deb %s jammy main universe\ndeb %s jammy-updates main universe\ndeb %s jammy-security main universe\n' \
+                "$mirror" "$mirror" "$mirror" | sudo tee /etc/apt/sources.list > /dev/null
+              if apt_update; then ok=1; break; fi
+            done
+            if [ "$ok" != 1 ]; then echo "No apt mirror was reachable"; exit 1; fi
+          fi
+
+          "${APT[@]}" install -y --no-install-recommends \
+            libgl1 libegl1 libdbus-1-3 libfontconfig1 \
             libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
             libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
             libxcb-xinerama0 libxcb-xkb1
