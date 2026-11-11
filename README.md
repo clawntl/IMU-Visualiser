@@ -36,9 +36,23 @@ A desktop app that reads orientation data from an IMU over a serial port and sho
 
 ## Getting started
 
-Requires Python 3.10 or newer (developed on 3.14). Developed and tested on Windows; the code is plain PySide6 and pyserial, but it has not been tried on other platforms.
+### Download (no Python needed)
 
-Double-click `run.bat`, or run it from a terminal. The first run creates a `.venv` and installs the dependencies; after that it just launches the app.
+Grab the build for your system from the [Releases page](https://github.com/clawntl/IMU-Visualiser/releases), unzip it, and run `IMU-Visualiser`.
+
+| System | File | Notes |
+| --- | --- | --- |
+| Windows | `...-windows.zip` | The builds are unsigned, so SmartScreen may warn about an unrecognised publisher: choose **More info**, then **Run anyway**. |
+| Linux | `...-linux.tar.gz` | Needs a desktop session. On Debian/Ubuntu you may need `sudo apt install libxcb-cursor0`. To open serial ports, add yourself to the `dialout` group (`sudo usermod -aG dialout $USER`) and log out and back in. Built on Ubuntu 22.04, so it targets distributions at least that recent. |
+| macOS | `...-macos-arm64.zip` | Apple Silicon only. Unsigned, so the first time, right-click the app and choose **Open** (or run `xattr -dr com.apple.quarantine IMU-Visualiser.app`). |
+
+The Windows build is the one tested by hand. The Linux and macOS builds are produced by CI, which runs an import self-check on each before publishing, but they have not been tried on real hardware.
+
+### Run from source
+
+Requires Python 3.10 or newer (developed on 3.14).
+
+On Windows, double-click `run.bat`, or run it from a terminal. The first run creates a `.venv` and installs the dependencies; after that it just launches the app.
 
 To set it up manually instead:
 
@@ -48,7 +62,11 @@ python -m venv .venv
 .venv\Scripts\python main.py
 ```
 
-Then pick your COM port and baud rate, choose the data format your firmware sends, and press **Connect**.
+On Linux and macOS the same steps work with `.venv/bin/pip` and `.venv/bin/python`.
+
+### Using it
+
+Pick your COM port and baud rate, choose the data format your firmware sends, and press **Connect**.
 
 ## Serial data format
 
@@ -90,9 +108,11 @@ t,w,x,y,z,roll_deg,pitch_deg,yaw_deg
 ## Project layout
 
 ```
-main.py              Entry point
+main.py              Entry point (`--check` verifies imports and exits)
 run.bat              One-click launcher (creates the venv on first run)
 requirements.txt
+imuviz.spec          PyInstaller build recipe
+.github/workflows/   CI: builds and publishes releases
 imuviz/
   main_window.py     UI and application logic
   viewport.py        OpenGL scene: board/model, axis triad, shading
@@ -107,3 +127,23 @@ docs/                README screenshots
 ```
 
 Settings are stored with `QSettings`, which on Windows means the registry under `HKEY_CURRENT_USER\Software\IMUViz\AccelerometerPlotter`.
+
+## Making a release
+
+Pushing a version tag builds Windows, Linux and macOS bundles with PyInstaller and publishes them as a GitHub Release:
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The release is only created if all three platforms build and pass the self-check. To test-build without publishing, open the repo's **Actions** tab, pick **Build and release**, and use **Run workflow**; the zips appear as artifacts on that run.
+
+To build locally for your own platform:
+
+```sh
+pip install pyinstaller
+pyinstaller imuviz.spec --noconfirm
+```
+
+The result is in `dist/`.

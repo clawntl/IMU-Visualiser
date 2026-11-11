@@ -1,0 +1,113 @@
+name: Build and release
+
+on:
+  # Push a version tag (e.g. v1.0.0) to build all platforms and publish a release.
+  push:
+    tags: ["v*"]
+  # Run manually from the Actions tab to test-build without publishing anything;
+  # the zips show up as artifacts on the run.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, name: windows }
+          # Built on the oldest supported Ubuntu so the binary runs on more distros.
+          - { os: ubuntu-22.04, name: linux }
+          - { os: macos-latest, name: macos-arm64 }
+    env:
+      VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libdbus-1-3 libfontconfig1 \
+            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+            libxcb-xinerama0 libxcb-xkb1
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build
+        run: pyinstaller imuviz.spec --noconfirm
+
+      # Imports every module the app needs from inside the packaged build, so a
+      # missing dependency fails here instead of on a user's machine.
+      - name: Self-check (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\IMU-Visualiser\IMU-Visualiser.exe -ArgumentList "--check" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "self-check failed (exit code $($p.ExitCode))" }
+
+      - name: Self-check (Linux)
+        if: runner.os == 'Linux'
+        run: dist/IMU-Visualiser/IMU-Visualiser --check
+
+      - name: Self-check (macOS)
+        if: runner.os == 'macOS'
+        run: dist/IMU-Visualiser.app/Contents/MacOS/IMU-Visualiser --check
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path dist\IMU-Visualiser -DestinationPath "IMU-Visualiser-$env:VERSION-windows.zip"
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: tar -czf "IMU-Visualiser-${VERSION}-linux.tar.gz" -C dist IMU-Visualiser
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: ditto -c -k --keepParent dist/IMU-Visualiser.app "IMU-Visualiser-${VERSION}-macos-arm64.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IMU-Visualiser-${{ matrix.name }}
+          path: |
+            IMU-Visualiser-*.zip
+            IMU-Visualiser-*.tar.gz
+          if-no-files-found: error
+
+  # Only runs for tag pushes, and only if every platform built successfully,
+  # so a release is never published with a platform missing.
+  release:
+    name: Publish release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" artifacts/*
+          --repo "$GITHUB_REPOSITORY"
+          --title "$GITHUB_REF_NAME"
+          --generate-notes
