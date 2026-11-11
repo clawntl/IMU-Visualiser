@@ -61,6 +61,8 @@ One reading per line. Fields can be separated by `;`, `,` or whitespace.
 
 Any line that does not have the expected number of numeric fields is ignored for orientation purposes but still appears in the serial console, so boot messages and debug output are fine.
 
+The app works with any firmware that prints these lines (for example, `Serial.println` of the values joined with `;`). Set the baud rate in the app to match your firmware.
+
 ## Aligning the model to the sensor
 
 Three separate tools deal with orientation, and they do different jobs:
@@ -85,10 +87,6 @@ t,w,x,y,z,roll_deg,pitch_deg,yaw_deg
 
 `t` is seconds since recording started. Recordings capture the orientation after axis remap but before tare. **Load Log for Playback** replays a file at its original timing through the same 3D view, plot and readouts. Playback and a live connection are mutually exclusive.
 
-## Firmware
-
-`GetAngle_MPULIGHT/GetAngle_MPULIGHT.ino` is an ESP32 sketch for an MPU-6050 (using the [MPU6050_light](https://github.com/rfetick/MPU6050_light) library) that streams Euler angles as `x;y;z`. As committed it opens serial at 57600 baud, so set the app's baud rate to match whatever your firmware actually uses. If your firmware streams quaternions instead, switch the app's data format to Quaternion; no code changes are needed.
-
 ## Project layout
 
 ```
@@ -107,7 +105,6 @@ imuviz/
   settings.py        Persistent settings (QSettings)
 docs/                README screenshots
 legacy/              Original matplotlib scripts (see below)
-GetAngle_MPULIGHT/   Example ESP32 firmware
 ```
 
 Settings are stored with `QSettings`, which on Windows means the registry under `HKEY_CURRENT_USER\Software\IMUViz\AccelerometerPlotter`.
