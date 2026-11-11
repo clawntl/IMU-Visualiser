@@ -1,6 +1,6 @@
 # IMU Orientation Visualizer
 
-A desktop app that reads orientation data from an IMU over a serial port and shows it live in 3D. The IMU (originally an MPU-6050, currently an LSM6DSV16X) sits on an ESP32 or similar microcontroller, which does the angle/quaternion calculation and streams the result over USB serial. This app only receives and renders it.
+A desktop app that reads orientation data from an IMU over a serial port and shows it live in 3D, alongside a rolling graph, a two-way serial console, calibration tools, and session recording and playback. The device does the orientation calculation and streams quaternions or Euler angles; this app only receives and renders them, so it works with any IMU or firmware that outputs one of those formats.
 
 <p align="center">
   <img src="docs/screenshot-dark.png" width="49%" alt="Dark theme">
@@ -104,11 +104,6 @@ imuviz/
   theme.py           Light and dark palettes
   settings.py        Persistent settings (QSettings)
 docs/                README screenshots
-legacy/              Original matplotlib scripts (see below)
 ```
 
 Settings are stored with `QSettings`, which on Windows means the registry under `HKEY_CURRENT_USER\Software\IMUViz\AccelerometerPlotter`.
-
-## Legacy scripts
-
-`legacy/animation_quaternion.pyw`, `legacy/animation_quaternion_old.pyw` and `legacy/3dcuberotateanim.py` are the original matplotlib versions: one hardcoded COM port and no UI. The two quaternion scripts also used a pitch formula that drifted at larger angles, which is fixed in the current app. They are kept for reference, along with their `legacy/lib/` helpers and `legacy/test.py` raw-serial probe. Use `main.py` instead.
